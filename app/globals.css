@@ -1,29 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+* {
+  font-family: 'Rajdhani', 'Orbitron', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+/* Dark mode (default) */
+html.dark,
+html.dark body {
+  background: linear-gradient(to bottom right, #0f172a 0%, #581c87 50%, #0f172a 100%);
+  color: #ffffff;
+  min-height: 100vh;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+html.dark {
+  background-color: #000000;
+}
+
+/* Light mode */
+html.light,
+html.light body {
+  background: linear-gradient(to bottom right, #f9fafb 0%, #e0f2fe 50%, #f9fafb 100%);
+  color: #1a1a1a;
+  min-height: 100vh;
+}
+
+html.light {
+  background-color: #f9fafb;
+}
+
+.font-orbitron {
+  font-family: 'Orbitron', sans-serif;
+}
+
+.font-rajdhani {
+  font-family: 'Rajdhani', sans-serif;
 }
 
 @layer utilities {
@@ -32,21 +46,33 @@ body {
   }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
+/* Custom scrollbar - Dark mode */
+html.dark ::-webkit-scrollbar-track {
   background: #1a1a1a;
 }
 
-::-webkit-scrollbar-thumb {
+html.dark ::-webkit-scrollbar-thumb {
   background: #4a4a4a;
-  border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: #6a6a6a;
+}
+
+/* Custom scrollbar - Light mode */
+html.light ::-webkit-scrollbar-track {
+  background: #e5e5e5;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #b0b0b0;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #909090;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
 }
 

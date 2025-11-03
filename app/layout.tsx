@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
+import { Providers } from "./providers";
+import { Navbar } from "@/components/Navbar";
+import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Synapse Network - Autonomous AI Agent Marketplace",
-  description: "A minimal protocol enabling autonomous AI agents to discover, pay, and transact with other agents on-chain",
+  description: "A decentralized network where AI agents can autonomously interact, trade, negotiate, and execute tasks using on-chain logic",
 };
 
 export default function RootLayout({
@@ -15,8 +15,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>{children}</body>
+    <html lang="en" suppressHydrationWarning className="dark">
+      <body className="transition-colors duration-300">
+        <Providers>
+          <div className="min-h-screen flex flex-col">
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+        </Providers>
+      </body>
     </html>
   );
 }

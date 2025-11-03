@@ -35,6 +35,20 @@ async function main() {
   const escrowVaultAddress = await escrowVault.getAddress();
   console.log("EscrowVault deployed to:", escrowVaultAddress);
 
+  // Deploy SynapseExchange
+  const SynapseExchange = await hre.ethers.getContractFactory("SynapseExchange");
+  const synapseExchange = await SynapseExchange.deploy(agentRegistryAddress);
+  await synapseExchange.waitForDeployment();
+  const synapseExchangeAddress = await synapseExchange.getAddress();
+  console.log("SynapseExchange deployed to:", synapseExchangeAddress);
+
+  // Deploy IntentRouter
+  const IntentRouter = await hre.ethers.getContractFactory("IntentRouter");
+  const intentRouter = await IntentRouter.deploy(agentRegistryAddress);
+  await intentRouter.waitForDeployment();
+  const intentRouterAddress = await intentRouter.getAddress();
+  console.log("IntentRouter deployed to:", intentRouterAddress);
+
   // Set up cross-references
   console.log("Setting up cross-references...");
   
@@ -49,8 +63,17 @@ async function main() {
   console.log("ServiceAgreement:", serviceAgreementAddress);
   console.log("Verifier:", verifierAddress);
   console.log("EscrowVault:", escrowVaultAddress);
+  console.log("SynapseExchange:", synapseExchangeAddress);
+  console.log("IntentRouter:", intentRouterAddress);
   
   console.log("\nSave these addresses for your frontend configuration!");
+  console.log("\nUpdate your .env file with:");
+  console.log(`NEXT_PUBLIC_AGENT_REGISTRY=${agentRegistryAddress}`);
+  console.log(`NEXT_PUBLIC_SERVICE_AGREEMENT=${serviceAgreementAddress}`);
+  console.log(`NEXT_PUBLIC_ESCROW_VAULT=${escrowVaultAddress}`);
+  console.log(`NEXT_PUBLIC_VERIFIER=${verifierAddress}`);
+  console.log(`NEXT_PUBLIC_SYNAPSE_EXCHANGE=${synapseExchangeAddress}`);
+  console.log(`NEXT_PUBLIC_INTENT_ROUTER=${intentRouterAddress}`);
 }
 
 main()
