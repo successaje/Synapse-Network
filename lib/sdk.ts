@@ -1,41 +1,20 @@
 import { ethers } from 'ethers';
 
-// Contract ABIs (simplified - in production, import from artifacts)
-const AGENT_REGISTRY_ABI = [
-  "function registerAgent(address agentAddr, string calldata metadata) external",
-  "function getAgent(address agentAddr) external view returns (string memory metadata, uint256 reputation)",
-  "function isRegistered(address agentAddr) external view returns (bool)",
-  "event AgentRegistered(address indexed agentAddr, string metadata, uint256 timestamp)",
-];
-
-const SERVICE_AGREEMENT_ABI = [
-  "function createOrder(uint256 price, bytes calldata spec, uint256 deadline) external returns (uint256 orderId)",
-  "function acceptOrder(uint256 orderId) external",
-  "function submitDelivery(uint256 orderId, bytes32 deliverableHash) external",
-  "function finalizeOrder(uint256 orderId) external",
-  "function cancelOrder(uint256 orderId) external",
-  "function getOrder(uint256 orderId) external view returns (tuple(address requester, address provider, uint256 price, bytes32 deliverableHash, uint256 deadline, uint8 status, bytes spec, uint256 createdAt, uint256 acceptedAt, uint256 deliveredAt))",
-  "function getOrderCount() external view returns (uint256)",
-  "event OrderCreated(uint256 indexed orderId, address indexed requester, uint256 price, bytes32 specHash, uint256 deadline)",
-  "event OrderAccepted(uint256 indexed orderId, address indexed provider)",
-  "event DeliverySubmitted(uint256 indexed orderId, address indexed provider, bytes32 deliverableHash)",
-  "event OrderFinalized(uint256 indexed orderId)",
-];
-
-const ESCROW_VAULT_ABI = [
-  "function depositEscrow(uint256 orderId) payable external",
-  "function releaseEscrow(uint256 orderId) external",
-  "function refundEscrow(uint256 orderId) external",
-  "function getEscrow(uint256 orderId) external view returns (tuple(uint256 orderId, address requester, address provider, uint256 amount, bool deposited, bool released, bool refunded, uint256 depositedAt))",
-  "event EscrowDeposited(uint256 indexed orderId, address indexed requester, uint256 amount)",
-  "event EscrowReleased(uint256 indexed orderId, address indexed provider, uint256 amount)",
-];
+// Import ABIs from compiled artifacts
+import AgentRegistryABI from './abis/AgentRegistry.json';
+import ServiceAgreementABI from './abis/ServiceAgreement.json';
+import EscrowVaultABI from './abis/EscrowVault.json';
+import VerifierABI from './abis/Verifier.json';
+import SynapseExchangeABI from './abis/SynapseExchange.json';
+import IntentRouterABI from './abis/IntentRouter.json';
 
 export interface ContractAddresses {
   agentRegistry: string;
   serviceAgreement: string;
   escrowVault: string;
   verifier: string;
+  synapseExchange: string;
+  intentRouter: string;
 }
 
 export interface Order {
@@ -60,6 +39,17 @@ export enum OrderStatus {
   Disputed = 5,
 }
 
+// Validate that an address is not empty and is a valid address format
+function validateAddress(address: string, name: string): string {
+  if (!address || address.trim() === '') {
+    throw new Error(`Contract address for ${name} is not set. Please set the NEXT_PUBLIC_${name.toUpperCase()} environment variable.`);
+  }
+  if (!ethers.isAddress(address)) {
+    throw new Error(`Invalid contract address for ${name}: ${address}`);
+  }
+  return address;
+}
+
 export class SynapseSDK {
   private provider: ethers.Provider;
   private signer: ethers.Signer | null = null;
@@ -68,6 +58,9 @@ export class SynapseSDK {
   public agentRegistry: ethers.Contract;
   public serviceAgreement: ethers.Contract;
   public escrowVault: ethers.Contract;
+  public verifier: ethers.Contract;
+  public synapseExchange: ethers.Contract;
+  public intentRouter: ethers.Contract;
 
   constructor(
     provider: ethers.Provider | ethers.BrowserProvider,
@@ -75,26 +68,55 @@ export class SynapseSDK {
     signer?: ethers.Signer
   ) {
     this.provider = provider as ethers.Provider;
-    this.addresses = addresses;
+    
+    // Validate all addresses before creating contracts
+    this.addresses = {
+      agentRegistry: validateAddress(addresses.agentRegistry, 'AgentRegistry'),
+      serviceAgreement: validateAddress(addresses.serviceAgreement, 'ServiceAgreement'),
+      escrowVault: validateAddress(addresses.escrowVault, 'EscrowVault'),
+      verifier: validateAddress(addresses.verifier, 'Verifier'),
+      synapseExchange: validateAddress(addresses.synapseExchange, 'SynapseExchange'),
+      intentRouter: validateAddress(addresses.intentRouter, 'IntentRouter'),
+    };
+
     if (signer) {
       this.signer = signer;
     }
 
+    // Create contract instances with full ABIs
     this.agentRegistry = new ethers.Contract(
-      addresses.agentRegistry,
-      AGENT_REGISTRY_ABI,
+      this.addresses.agentRegistry,
+      AgentRegistryABI as any,
       signer || provider
     );
 
     this.serviceAgreement = new ethers.Contract(
-      addresses.serviceAgreement,
-      SERVICE_AGREEMENT_ABI,
+      this.addresses.serviceAgreement,
+      ServiceAgreementABI as any,
       signer || provider
     );
 
     this.escrowVault = new ethers.Contract(
-      addresses.escrowVault,
-      ESCROW_VAULT_ABI,
+      this.addresses.escrowVault,
+      EscrowVaultABI as any,
+      signer || provider
+    );
+
+    this.verifier = new ethers.Contract(
+      this.addresses.verifier,
+      VerifierABI as any,
+      signer || provider
+    );
+
+    this.synapseExchange = new ethers.Contract(
+      this.addresses.synapseExchange,
+      SynapseExchangeABI as any,
+      signer || provider
+    );
+
+    this.intentRouter = new ethers.Contract(
+      this.addresses.intentRouter,
+      IntentRouterABI as any,
       signer || provider
     );
   }
@@ -104,6 +126,9 @@ export class SynapseSDK {
     this.agentRegistry = this.agentRegistry.connect(signer);
     this.serviceAgreement = this.serviceAgreement.connect(signer);
     this.escrowVault = this.escrowVault.connect(signer);
+    this.verifier = this.verifier.connect(signer);
+    this.synapseExchange = this.synapseExchange.connect(signer);
+    this.intentRouter = this.intentRouter.connect(signer);
   }
 
   // Agent Registry methods
@@ -119,6 +144,14 @@ export class SynapseSDK {
 
   async isRegistered(agentAddr: string): Promise<boolean> {
     return await this.agentRegistry.isRegistered(agentAddr);
+  }
+
+  async getAgentCount(): Promise<bigint> {
+    return await this.agentRegistry.getAgentCount();
+  }
+
+  async getAgentByIndex(index: number): Promise<string> {
+    return await this.agentRegistry.agentList(index);
   }
 
   // Service Agreement methods
@@ -152,7 +185,8 @@ export class SynapseSDK {
 
   async submitDelivery(orderId: bigint, deliverableHash: string) {
     if (!this.signer) throw new Error('Signer not connected');
-    const tx = await this.serviceAgreement.submitDelivery(orderId, deliverableHash);
+    const hashBytes32 = ethers.hexlify(ethers.zeroPadValue(deliverableHash, 32));
+    const tx = await this.serviceAgreement.submitDelivery(orderId, hashBytes32);
     return await tx.wait();
   }
 
@@ -197,6 +231,113 @@ export class SynapseSDK {
     return await tx.wait();
   }
 
+  async getEscrow(orderId: bigint) {
+    return await this.escrowVault.getEscrow(orderId);
+  }
+
+  async releaseEscrow(orderId: bigint) {
+    if (!this.signer) throw new Error('Signer not connected');
+    const tx = await this.escrowVault.releaseEscrow(orderId);
+    return await tx.wait();
+  }
+
+  async refundEscrow(orderId: bigint) {
+    if (!this.signer) throw new Error('Signer not connected');
+    const tx = await this.escrowVault.refundEscrow(orderId);
+    return await tx.wait();
+  }
+
+  // Verifier methods
+  async verifyDelivery(orderId: bigint, deliverableHash: string): Promise<boolean> {
+    const hashBytes32 = ethers.hexlify(ethers.zeroPadValue(deliverableHash, 32));
+    return await this.verifier.verifyDelivery(orderId, hashBytes32);
+  }
+
+  async getVerification(orderId: bigint) {
+    return await this.verifier.getVerification(orderId);
+  }
+
+  // SynapseExchange methods
+  async initiateInteraction(
+    counterparty: string,
+    interactionType: number,
+    proposedPrice: bigint,
+    specification: string,
+    deadline: number
+  ): Promise<bigint> {
+    if (!this.signer) throw new Error('Signer not connected');
+    const specBytes = ethers.toUtf8Bytes(specification);
+    const tx = await this.synapseExchange.initiateInteraction(
+      counterparty,
+      interactionType,
+      proposedPrice,
+      specBytes,
+      deadline
+    );
+    const receipt = await tx.wait();
+    // Extract interactionId from event
+    const event = receipt?.logs
+      .map((log: any) => {
+        try {
+          return this.synapseExchange.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((e: any) => e?.name === 'InteractionInitiated');
+    return event?.args.interactionId || BigInt(0);
+  }
+
+  async getInteraction(interactionId: bigint) {
+    return await this.synapseExchange.getInteraction(interactionId);
+  }
+
+  async getTrustScore(from: string, to: string): Promise<bigint> {
+    return await this.synapseExchange.getTrustScore(from, to);
+  }
+
+  // IntentRouter methods
+  async postIntent(
+    intentType: number,
+    intentData: string,
+    requirements: string,
+    maxPrice: bigint,
+    minReputation: bigint,
+    deadline: number
+  ): Promise<bigint> {
+    if (!this.signer) throw new Error('Signer not connected');
+    const dataBytes = ethers.toUtf8Bytes(intentData);
+    const requirementsBytes32 = ethers.hexlify(ethers.zeroPadValue(requirements, 32));
+    const tx = await this.intentRouter.postIntent(
+      intentType,
+      dataBytes,
+      requirementsBytes32,
+      maxPrice,
+      minReputation,
+      deadline
+    );
+    const receipt = await tx.wait();
+    // Extract intentId from event
+    const event = receipt?.logs
+      .map((log: any) => {
+        try {
+          return this.intentRouter.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((e: any) => e?.name === 'IntentPosted');
+    return event?.args.intentId || BigInt(0);
+  }
+
+  async getIntent(intentId: bigint) {
+    return await this.intentRouter.getIntent(intentId);
+  }
+
+  async searchIntents(intentType: number, maxPrice: bigint, activeOnly: boolean): Promise<bigint[]> {
+    return await this.intentRouter.searchIntents(intentType, maxPrice, activeOnly);
+  }
+
   // Event listeners
   onOrderCreated(callback: (orderId: bigint, requester: string, price: bigint) => void) {
     this.serviceAgreement.on('OrderCreated', (orderId, requester, price, event) => {
@@ -236,23 +377,33 @@ export class SynapseSDK {
   }
 }
 
-// Helper to get contract addresses (update with your deployed addresses)
-export const getContractAddresses = (network: 'somnia' | 'hardhat' = 'somnia'): ContractAddresses => {
-  // Default addresses - update after deployment
-  if (network === 'hardhat') {
-    return {
-      agentRegistry: process.env.NEXT_PUBLIC_AGENT_REGISTRY || '',
-      serviceAgreement: process.env.NEXT_PUBLIC_SERVICE_AGREEMENT || '',
-      escrowVault: process.env.NEXT_PUBLIC_ESCROW_VAULT || '',
-      verifier: process.env.NEXT_PUBLIC_VERIFIER || '',
-    };
-  }
-  
-  return {
+// Helper to get contract addresses from environment variables
+export const getContractAddresses = (): ContractAddresses => {
+  const addresses = {
     agentRegistry: process.env.NEXT_PUBLIC_AGENT_REGISTRY || '',
     serviceAgreement: process.env.NEXT_PUBLIC_SERVICE_AGREEMENT || '',
     escrowVault: process.env.NEXT_PUBLIC_ESCROW_VAULT || '',
     verifier: process.env.NEXT_PUBLIC_VERIFIER || '',
+    synapseExchange: process.env.NEXT_PUBLIC_SYNAPSE_EXCHANGE || '',
+    intentRouter: process.env.NEXT_PUBLIC_INTENT_ROUTER || '',
   };
-};
 
+  // Validate that all addresses are set
+  const missing: string[] = [];
+  Object.entries(addresses).forEach(([key, value]) => {
+    if (!value || value.trim() === '') {
+      missing.push(key);
+    }
+  });
+
+  if (missing.length > 0) {
+    console.warn('⚠️  Missing contract addresses:', missing.join(', '));
+    console.warn('   Please set the following environment variables:');
+    missing.forEach(key => {
+      const envVar = `NEXT_PUBLIC_${key.toUpperCase().replace(/([A-Z])/g, '_$1').slice(1)}`;
+      console.warn(`   - ${envVar}`);
+    });
+  }
+
+  return addresses;
+};
