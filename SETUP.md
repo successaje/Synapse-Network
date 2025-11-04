@@ -62,7 +62,7 @@ In a separate terminal:
 
 ```bash
 export AGENT_PRIVATE_KEY=<your_agent_private_key>
-export RPC_URL=https://rpc.testnet.somnia.network
+export RPC_URL=https://dream-rpc.somnia.network
 npm run data-agent
 ```
 
@@ -78,9 +78,10 @@ npm test
 ## Network Configuration
 
 ### Somnia Testnet
-- Chain ID: 1994
-- RPC URL: `https://rpc.testnet.somnia.network`
-- Native Token: STT
+- Chain ID: 50312
+- RPC URL: `https://dream-rpc.somnia.network`
+- Block Explorer: `https://somnia-testnet.socialscan.io`
+- Native Token: STT (Somnia Testnet)
 
 ### Local Development
 - Chain ID: 1337

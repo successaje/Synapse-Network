@@ -65,7 +65,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://explorer.testnet.somnia.network"
+                  href="https://shannon-explorer.somnia.network"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-primary-400 transition-colors"
@@ -79,7 +79,7 @@ export function Footer() {
           <div>
             <h4 className="font-rajdhani font-semibold mb-4">Network</h4>
             <ul className="space-y-2 text-sm text-gray-400 dark:text-gray-400 text-gray-600 font-mono">
-              <li>Chain ID: 1994</li>
+              <li>Chain ID: 50312</li>
               <li>Network: Somnia Testnet</li>
               <li>Token: STT</li>
             </ul>

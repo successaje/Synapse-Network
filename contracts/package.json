@@ -4,14 +4,15 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy": "hardhat run scripts/deploy.js"
+    "deploy": "hardhat run scripts/deploy.js --network somniaTestnet",
+    "verify": "hardhat run scripts/verify.js --network somnia-testnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^17.2.3",
     "hardhat": "^2.22.0"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2"
   }
 }
-

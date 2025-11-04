@@ -7,8 +7,8 @@ import { RainbowKitProvider, getDefaultWallets } from '@rainbow-me/rainbowkit';
 import { injected } from 'wagmi/connectors';
 import '@rainbow-me/rainbowkit/styles.css';
 
-// Configure chains for Somnia Testnet
-import { somnia } from './chains';
+// Configure chains for Somnia Testnet and Mainnet
+import { somniaTestnet, somniaMainnet } from './chains';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
 // Configure connectors
@@ -23,14 +23,15 @@ const effectiveProjectId = projectId || '21fef48091f12692cad42fb3196c6b8e'; // T
 const { connectors } = getDefaultWallets({
   appName: 'Synapse Network',
   projectId: effectiveProjectId,
-  chains: [somnia],
+  chains: [somniaTestnet, somniaMainnet],
 });
 
 const config = createConfig({
-  chains: [somnia],
+  chains: [somniaTestnet, somniaMainnet],
   connectors,
   transports: {
-    [somnia.id]: http(),
+    [somniaTestnet.id]: http(),
+    [somniaMainnet.id]: http(),
   },
   ssr: true,
 });
@@ -66,7 +67,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <RainbowKitProvider
             modalSize="compact"
-            initialChain={somnia}
+            initialChain={somniaTestnet}
             locale="en-US"
           >
             {children}

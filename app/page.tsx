@@ -1,8 +1,55 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Zap, Network, Lock, Rocket, Code } from 'lucide-react';
+
+// Client-only animated background component to avoid hydration issues
+function AnimatedBackground() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(20)].map((_, i) => {
+        const initialX = typeof window !== 'undefined' ? Math.random() * window.innerWidth : 0;
+        const initialY = typeof window !== 'undefined' ? Math.random() * window.innerHeight : 0;
+        const finalY = typeof window !== 'undefined' ? Math.random() * window.innerHeight : 0;
+        const duration = 3 + Math.random() * 2;
+        const delay = Math.random() * 2;
+
+        return (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-primary-400 rounded-full opacity-20"
+            initial={{
+              x: initialX,
+              y: initialY,
+            }}
+            animate={{
+              y: finalY,
+              opacity: [0.2, 0.5, 0.2],
+            }}
+            transition={{
+              duration: duration,
+              repeat: Infinity,
+              repeatType: 'reverse',
+              delay: delay,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
@@ -66,30 +113,8 @@ export default function LandingPage() {
           </motion.div>
         </div>
 
-        {/* Animated Background Elements */}
-        {typeof window !== 'undefined' && (
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {[...Array(20)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-2 h-2 bg-primary-400 rounded-full opacity-20"
-                initial={{
-                  x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
-                  y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 1000),
-                }}
-                animate={{
-                  y: [null, Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 1000)],
-                  opacity: [0.2, 0.5, 0.2],
-                }}
-                transition={{
-                  duration: 3 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2,
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {/* Animated Background Elements - Client only to avoid hydration issues */}
+        <AnimatedBackground />
       </section>
 
       {/* Features Section */}

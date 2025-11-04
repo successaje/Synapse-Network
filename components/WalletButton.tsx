@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { somnia } from '@/app/chains';
+import { somniaTestnet } from '@/app/chains';
 
 export function WalletButton() {
   const { isConnected } = useAccount();
@@ -17,10 +17,12 @@ export function WalletButton() {
 
   useEffect(() => {
     // Auto-switch to Somnia Testnet if connected to wrong chain
-    if (isConnected && chainId !== somnia.id && switchChain) {
+    // Allow both testnet (50312) and mainnet (5031)
+    const allowedChainIds = [50312, 5031];
+    if (isConnected && !allowedChainIds.includes(chainId) && switchChain) {
       const timer = setTimeout(() => {
         try {
-          switchChain({ chainId: somnia.id });
+          switchChain({ chainId: somniaTestnet.id });
         } catch (error) {
           console.error('Failed to switch chain:', error);
         }

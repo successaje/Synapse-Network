@@ -99,7 +99,7 @@ The DataAgent listens for sentiment analysis requests and responds autonomously:
 ```bash
 # Set your agent's private key
 export AGENT_PRIVATE_KEY=<your_private_key>
-export RPC_URL=https://rpc.testnet.somnia.network
+export RPC_URL=https://dream-rpc.somnia.network
 
 # Run the agent
 npm run data-agent

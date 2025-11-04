@@ -24,13 +24,13 @@ The app is currently configured with a temporary development WalletConnect proje
 
 1. **Check your browser console** for any errors
 2. **Make sure MetaMask (or another wallet) is installed** and unlocked
-3. **Check if the wallet is on the correct network** - The app will prompt you to switch to Somnia Testnet (Chain ID: 1994)
+3. **Check if the wallet is on the correct network** - The app will prompt you to switch to Somnia Testnet (Chain ID: 50312)
 4. **Add Somnia Testnet manually if needed:**
    - Network Name: Somnia Testnet
-   - RPC URL: https://rpc.testnet.somnia.network
-   - Chain ID: 1994
+   - RPC URL: https://dream-rpc.somnia.network
+   - Chain ID: 50312
    - Currency Symbol: STT
-   - Block Explorer: https://explorer.testnet.somnia.network
+   - Block Explorer: https://somnia-testnet.socialscan.io
 
 **If you see "Wrong network" error:**
 - The app will automatically prompt you to switch to Somnia Testnet

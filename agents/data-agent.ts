@@ -172,7 +172,7 @@ export class DataAgent {
 // Main execution
 if (typeof require !== 'undefined' && require.main === module) {
   const privateKey = process.env.AGENT_PRIVATE_KEY;
-  const rpcUrl = process.env.RPC_URL || 'https://rpc.testnet.somnia.network';
+  const rpcUrl = process.env.RPC_URL || 'https://dream-rpc.somnia.network';
 
   if (!privateKey) {
     console.error('Please set AGENT_PRIVATE_KEY environment variable');
