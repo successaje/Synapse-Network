@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Zap, Moon, Sun } from 'lucide-react';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { WalletButton } from './WalletButton';
 import { useTheme } from './ThemeProvider';
 
 export function Navbar() {
@@ -75,7 +75,7 @@ export function Navbar() {
                 <Moon className="w-5 h-5" />
               )}
             </button>
-            {mounted && <ConnectButton showBalance={false} />}
+            {mounted && <WalletButton />}
           </div>
         </div>
       </div>

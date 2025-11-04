@@ -11,6 +11,10 @@ export const somnia: Chain = {
   rpcUrls: {
     default: {
       http: ['https://rpc.testnet.somnia.network'],
+      webSocket: ['wss://rpc.testnet.somnia.network'],
+    },
+    public: {
+      http: ['https://rpc.testnet.somnia.network'],
     },
   },
   blockExplorers: {
@@ -20,5 +24,5 @@ export const somnia: Chain = {
     },
   },
   testnet: true,
-};
+} as const;
 
