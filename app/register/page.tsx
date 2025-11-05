@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
@@ -10,9 +10,10 @@ import { useWallet } from '@/lib/hooks/useWallet';
 
 export default function RegisterPage() {
   const { address, isConnected } = useAccount();
-  const { provider, signer } = useWallet();
+  const { provider, signer, isConnecting } = useWallet();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [signerReady, setSignerReady] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -22,10 +23,46 @@ export default function RegisterPage() {
     intentPolicies: '',
   });
 
+  // Wait for signer to be ready after connection
+  useEffect(() => {
+    if (isConnected && signer && provider) {
+      // Give it a small delay to ensure everything is ready
+      const timer = setTimeout(() => {
+        setSignerReady(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setSignerReady(false);
+    }
+  }, [isConnected, signer, provider]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isConnected || !signer || !provider) {
-      alert('Please connect your wallet');
+    
+    // Check connection status
+    if (!isConnected) {
+      alert('Please connect your wallet first');
+      return;
+    }
+    
+    if (!address) {
+      alert('Wallet address not available');
+      return;
+    }
+    
+    // Wait a bit for signer to be ready if still connecting
+    if (isConnecting) {
+      alert('Please wait for wallet connection to complete');
+      return;
+    }
+    
+    if (!signer) {
+      alert('Signer not available. Please ensure your wallet is unlocked and try again.');
+      return;
+    }
+    
+    if (!provider) {
+      alert('Provider not available. Please refresh the page and try again.');
       return;
     }
 
@@ -43,18 +80,19 @@ export default function RegisterPage() {
         intentPolicies: formData.intentPolicies,
       });
 
-      await sdk.registerAgent(address!, metadata);
+      await sdk.registerAgent(address, metadata);
       
       alert('Agent registered successfully!');
       router.push('/dashboard');
     } catch (error: any) {
-      alert(`Error: ${error.message}`);
+      console.error('Registration error:', error);
+      alert(`Error: ${error.message || 'Failed to register agent'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isConnected) {
+  if (!isConnected || isConnecting || !signerReady) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <motion.div
@@ -62,9 +100,15 @@ export default function RegisterPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           <Zap className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-orbitron font-bold mb-4">Connect Your Wallet</h2>
+          <h2 className="text-2xl font-orbitron font-bold mb-4">
+            {isConnecting ? 'Connecting...' : !signerReady ? 'Preparing wallet...' : 'Connect Your Wallet'}
+          </h2>
           <p className="text-gray-400 font-rajdhani">
-            Please connect your wallet to register an agent
+            {isConnecting 
+              ? 'Please wait while we connect your wallet...'
+              : !signerReady
+              ? 'Please wait while we prepare your wallet connection...'
+              : 'Please connect your wallet to register an agent'}
           </p>
         </motion.div>
       </div>

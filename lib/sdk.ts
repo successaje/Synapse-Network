@@ -39,10 +39,21 @@ export enum OrderStatus {
   Disputed = 5,
 }
 
+// Map contract names to their environment variable names
+const ENV_VAR_MAP: Record<string, string> = {
+  'AgentRegistry': 'NEXT_PUBLIC_AGENT_REGISTRY',
+  'ServiceAgreement': 'NEXT_PUBLIC_SERVICE_AGREEMENT',
+  'EscrowVault': 'NEXT_PUBLIC_ESCROW_VAULT',
+  'Verifier': 'NEXT_PUBLIC_VERIFIER',
+  'SynapseExchange': 'NEXT_PUBLIC_SYNAPSE_EXCHANGE',
+  'IntentRouter': 'NEXT_PUBLIC_INTENT_ROUTER',
+};
+
 // Validate that an address is not empty and is a valid address format
 function validateAddress(address: string, name: string): string {
   if (!address || address.trim() === '') {
-    throw new Error(`Contract address for ${name} is not set. Please set the NEXT_PUBLIC_${name.toUpperCase()} environment variable.`);
+    const envVar = ENV_VAR_MAP[name] || `NEXT_PUBLIC_${name.toUpperCase().replace(/([A-Z])/g, '_$1').slice(1)}`;
+    throw new Error(`Contract address for ${name} is not set. Please set the ${envVar} environment variable in your .env.local file.`);
   }
   if (!ethers.isAddress(address)) {
     throw new Error(`Invalid contract address for ${name}: ${address}`);
@@ -397,12 +408,16 @@ export const getContractAddresses = (): ContractAddresses => {
   });
 
   if (missing.length > 0) {
-    console.warn('⚠️  Missing contract addresses:', missing.join(', '));
-    console.warn('   Please set the following environment variables:');
+    console.error('❌ Missing contract addresses:', missing.join(', '));
+    console.error('   Please create a .env.local file in the root directory with:');
+    console.error('');
     missing.forEach(key => {
       const envVar = `NEXT_PUBLIC_${key.toUpperCase().replace(/([A-Z])/g, '_$1').slice(1)}`;
-      console.warn(`   - ${envVar}`);
+      console.error(`   ${envVar}=<contract_address>`);
     });
+    console.error('');
+    console.error('   See README.md for deployed contract addresses.');
+    console.error('   After adding variables, restart your Next.js dev server.');
   }
 
   return addresses;

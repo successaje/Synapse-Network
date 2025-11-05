@@ -15,7 +15,7 @@ export default function ExplorerPage() {
   const { provider } = useWallet();
   const [sdk, setSdk] = useState<SynapseSDK | null>(null);
   const [agents, setAgents] = useState<any[]>([]);
-  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
   const [searchTerm, setSearchTerm] = useState('');
   const graphRef = useRef<any>();
 
@@ -30,30 +30,75 @@ export default function ExplorerPage() {
 
   const loadAgents = async (sdkInstance: SynapseSDK) => {
     try {
-      // Mock data for visualization - in production, fetch from contracts
-      const mockAgents = [
-        { id: '0x123...', name: 'Data Agent Alpha', type: 'DataAgent', reputation: 85 },
-        { id: '0x456...', name: 'Compute Agent Beta', type: 'ComputeAgent', reputation: 72 },
-        { id: '0x789...', name: 'Trading Agent Gamma', type: 'TradingAgent', reputation: 91 },
-      ];
+      // Fetch all agents from contract
+      const agentCount = await sdkInstance.getAgentCount();
+      const agentList: any[] = [];
+      const links: any[] = [];
 
-      setAgents(mockAgents);
+      // Fetch all registered agents
+      for (let i = 0; i < Number(agentCount); i++) {
+        try {
+          const agentAddress = await sdkInstance.getAgentByIndex(i);
+          const isReg = await sdkInstance.isRegistered(agentAddress);
+          
+          if (isReg) {
+            const [metadata, reputation] = await sdkInstance.getAgent(agentAddress);
+            let agentData: any = {
+              id: agentAddress,
+              address: agentAddress,
+              reputation: Number(reputation),
+            };
 
-      // Build graph data
-      const nodes = mockAgents.map((agent, i) => ({
-        id: agent.id,
+            // Parse metadata if it's a string
+            try {
+              const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+              agentData = {
+                ...agentData,
+                name: parsed.name || `Agent ${i + 1}`,
+                type: parsed.type || 'Unknown',
+                description: parsed.description || '',
+                capabilities: parsed.capabilities || [],
+                endpoint: parsed.endpoint || '',
+              };
+            } catch {
+              agentData.name = `Agent ${i + 1}`;
+              agentData.type = 'Unknown';
+            }
+
+            agentList.push(agentData);
+          }
+        } catch (error) {
+          console.error(`Error loading agent ${i}:`, error);
+        }
+      }
+
+      setAgents(agentList);
+
+      // Build graph nodes from real data
+      const nodes = agentList.map((agent) => ({
+        id: agent.address,
         name: agent.name,
         type: agent.type,
         reputation: agent.reputation,
-        val: agent.reputation / 10,
+        val: Math.max(agent.reputation / 10, 5), // Minimum size
       }));
 
-      // Create connections (mock - in production, use actual interaction data)
-      const links = [
-        { source: nodes[0].id, target: nodes[1].id },
-        { source: nodes[1].id, target: nodes[2].id },
-        { source: nodes[0].id, target: nodes[2].id },
-      ];
+      // Build connections from interactions (fetch from SynapseExchange)
+      // For now, we'll create connections based on orders
+      try {
+        const orders = await sdkInstance.getAllOrders();
+        orders.forEach((order) => {
+          if (order.requester && order.provider && order.status !== 4) {
+            // Only show active connections
+            links.push({
+              source: order.requester,
+              target: order.provider,
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Error loading interactions:', error);
+      }
 
       setGraphData({ nodes, links });
     } catch (error) {

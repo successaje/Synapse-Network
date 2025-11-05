@@ -17,6 +17,7 @@ import { SynapseSDK, getContractAddresses } from '@/lib/sdk';
 import { useWallet } from '@/lib/hooks/useWallet';
 
 export default function DashboardPage() {
+  const [mounted, setMounted] = useState(false);
   const { address, isConnected } = useAccount();
   const { provider, signer } = useWallet();
   const [sdk, setSdk] = useState<SynapseSDK | null>(null);
@@ -29,7 +30,11 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    if (provider && isConnected) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && provider && isConnected) {
       const addresses = getContractAddresses();
       const synapseSDK = new SynapseSDK(provider, addresses, signer || undefined);
       if (signer) {
@@ -40,25 +45,55 @@ export default function DashboardPage() {
       // Load agent data
       loadAgentData(synapseSDK);
     }
-  }, [provider, signer, isConnected]);
+  }, [mounted, provider, signer, isConnected]);
 
   const loadAgentData = async (sdkInstance: SynapseSDK) => {
     if (!address) return;
     
     try {
+      // Load user's agent info
       const isReg = await sdkInstance.isRegistered(address);
       if (isReg) {
         const [metadata, reputation] = await sdkInstance.getAgent(address);
+        let agentData: any = {
+          address: address,
+          reputation: Number(reputation),
+        };
+
+        try {
+          const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+          agentData = {
+            ...agentData,
+            name: parsed.name || 'My Agent',
+            type: parsed.type || 'Unknown',
+            description: parsed.description || '',
+            capabilities: parsed.capabilities || [],
+          };
+        } catch {
+          agentData.name = 'My Agent';
+          agentData.type = 'Unknown';
+        }
+
+        setAgents([agentData]);
         setStats(prev => ({ ...prev, reputation: Number(reputation) }));
       }
       
+      // Load all orders and calculate stats
       const orderCount = await sdkInstance.getOrderCount();
       const orders = await sdkInstance.getAllOrders();
       
+      // Calculate total volume from finalized orders
+      const totalVolume = orders
+        .filter(o => o.status === 3) // Finalized
+        .reduce((sum, o) => sum + Number(o.price), 0);
+      
+      const activeOrders = orders.filter(o => o.status < 3 && (o.requester.toLowerCase() === address.toLowerCase() || o.provider.toLowerCase() === address.toLowerCase()));
+      
       setStats(prev => ({
         ...prev,
-        totalAgents: 1,
-        activeInteractions: orders.filter(o => o.status < 3).length,
+        totalAgents: isReg ? 1 : 0,
+        activeInteractions: activeOrders.length,
+        totalVolume: totalVolume / 1e18, // Convert from wei
       }));
     } catch (error) {
       console.error('Error loading agent data:', error);
@@ -158,10 +193,19 @@ export default function DashboardPage() {
                   {agent.address.slice(0, 6)}...{agent.address.slice(-4)}
                 </p>
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-gray-400">Rep: {agent.reputation}</span>
+                  <span className="text-gray-400">Rep: {agent.reputation || 0}</span>
                   <span className="text-gray-400">•</span>
-                  <span className="text-gray-400">Active</span>
+                  <span className="text-gray-400">{agent.type || 'Unknown'}</span>
                 </div>
+                {agent.capabilities && agent.capabilities.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {agent.capabilities.slice(0, 3).map((cap: string, i: number) => (
+                      <span key={i} className="text-xs px-2 py-1 bg-primary-600/20 text-primary-400 rounded">
+                        {cap}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
