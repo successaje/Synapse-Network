@@ -2,17 +2,29 @@
  * Helper functions for chain management
  */
 
-export async function switchToSomniaTestnet() {
+type EthereumProvider = {
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  on: (event: string, callback: (args: any) => void) => void;
+  removeListener: (event: string, callback: (args: any) => void) => void;
+  isMetaMask?: boolean;
+};
+
+function getEthereum(): EthereumProvider {
   if (typeof window === 'undefined' || !window.ethereum) {
     throw new Error('No wallet found');
   }
+  return window.ethereum as EthereumProvider;
+}
+
+export async function switchToSomniaTestnet() {
+  const ethereum = getEthereum();
 
   const chainId = '0xC498'; // 50312 in hex
   const chainIdDecimal = 50312;
 
   try {
     // Try to switch to the chain
-    await window.ethereum.request({
+    await ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId }],
     });
@@ -21,7 +33,7 @@ export async function switchToSomniaTestnet() {
     if (switchError.code === 4902) {
       try {
         // Add the chain
-        await window.ethereum.request({
+        await ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [
             {
@@ -47,16 +59,14 @@ export async function switchToSomniaTestnet() {
 }
 
 export async function switchToSomniaMainnet() {
-  if (typeof window === 'undefined' || !window.ethereum) {
-    throw new Error('No wallet found');
-  }
+  const ethereum = getEthereum();
 
   const chainId = '0x13A7'; // 5031 in hex
   const chainIdDecimal = 5031;
 
   try {
     // Try to switch to the chain
-    await window.ethereum.request({
+    await ethereum.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId }],
     });
@@ -65,7 +75,7 @@ export async function switchToSomniaMainnet() {
     if (switchError.code === 4902) {
       try {
         // Add the chain
-        await window.ethereum.request({
+        await ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [
             {
@@ -104,15 +114,3 @@ export function getChainId(): number {
 export function isSomniaChain(chainId: number): boolean {
   return chainId === 50312 || chainId === 5031; // Testnet or Mainnet
 }
-
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: any[] }) => Promise<any>;
-      on: (event: string, callback: (args: any) => void) => void;
-      removeListener: (event: string, callback: (args: any) => void) => void;
-      isMetaMask?: boolean;
-    };
-  }
-}
-

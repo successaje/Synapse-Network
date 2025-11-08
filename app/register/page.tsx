@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [signerReady, setSignerReady] = useState(false);
+  const [txStep, setTxStep] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -25,12 +26,19 @@ export default function RegisterPage() {
 
   // Wait for signer to be ready after connection
   useEffect(() => {
-    if (isConnected && signer && provider) {
-      // Give it a small delay to ensure everything is ready
-      const timer = setTimeout(() => {
+    if (isConnected) {
+      // If we have signer and provider, mark as ready immediately
+      if (signer && provider) {
         setSignerReady(true);
-      }, 500);
-      return () => clearTimeout(timer);
+      } else {
+        // Give wagmi time to set up the connection
+        // Allow form to show after a short delay, even if signer isn't ready
+        // The submit handler will check for signer availability
+        const timer = setTimeout(() => {
+          setSignerReady(true);
+        }, 1500);
+        return () => clearTimeout(timer);
+      }
     } else {
       setSignerReady(false);
     }
@@ -67,7 +75,13 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
+    setTxStep('preparing');
+    
     try {
+      // Simulate transaction steps
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setTxStep('signing');
+      
       const addresses = getContractAddresses();
       const sdk = new SynapseSDK(provider, addresses, signer);
       
@@ -80,19 +94,33 @@ export default function RegisterPage() {
         intentPolicies: formData.intentPolicies,
       });
 
-      await sdk.registerAgent(address, metadata);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setTxStep('submitting');
       
-      alert('Agent registered successfully!');
+      // Actually call the contract
+      const tx = await sdk.registerAgent(address, metadata);
+      
+      setTxStep('confirming');
+      await tx.wait();
+      
+      setTxStep('success');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
-      alert(`Error: ${error.message || 'Failed to register agent'}`);
-    } finally {
-      setLoading(false);
+      setTxStep('error');
+      setTimeout(() => {
+        alert(`Error: ${error.message || 'Failed to register agent'}`);
+        setLoading(false);
+        setTxStep('');
+      }, 2000);
     }
   };
 
-  if (!isConnected || isConnecting || !signerReady) {
+  // Only show connect message if truly not connected
+  // Allow form to show even if signer isn't ready yet (will handle in submit)
+  if (!isConnected) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <motion.div
@@ -101,13 +129,11 @@ export default function RegisterPage() {
         >
           <Zap className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-2xl font-orbitron font-bold mb-4">
-            {isConnecting ? 'Connecting...' : !signerReady ? 'Preparing wallet...' : 'Connect Your Wallet'}
+            {isConnecting ? 'Connecting...' : 'Connect Your Wallet'}
           </h2>
           <p className="text-gray-400 font-rajdhani">
             {isConnecting 
               ? 'Please wait while we connect your wallet...'
-              : !signerReady
-              ? 'Please wait while we prepare your wallet connection...'
               : 'Please connect your wallet to register an agent'}
           </p>
         </motion.div>
@@ -238,7 +264,13 @@ export default function RegisterPage() {
               {loading ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Registering...
+                  {txStep === 'preparing' && 'Preparing transaction...'}
+                  {txStep === 'signing' && 'Waiting for signature...'}
+                  {txStep === 'submitting' && 'Submitting to blockchain...'}
+                  {txStep === 'confirming' && 'Confirming transaction...'}
+                  {txStep === 'success' && 'Success! Redirecting...'}
+                  {txStep === 'error' && 'Transaction failed'}
+                  {!txStep && 'Registering...'}
                 </>
               ) : (
                 <>
@@ -247,6 +279,36 @@ export default function RegisterPage() {
                 </>
               )}
             </button>
+            
+            {loading && txStep && (
+              <div className="mt-4 bg-white/5 rounded-lg p-4 border border-white/10">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    ['preparing', 'signing', 'submitting', 'confirming', 'success'].includes(txStep) 
+                      ? 'bg-primary-400 animate-pulse' 
+                      : 'bg-red-400'
+                  }`} />
+                  <span className="text-sm font-rajdhani text-gray-300">
+                    {txStep === 'preparing' && 'Preparing transaction parameters...'}
+                    {txStep === 'signing' && 'Please sign the transaction in your wallet'}
+                    {txStep === 'submitting' && 'Submitting transaction to network...'}
+                    {txStep === 'confirming' && 'Waiting for blockchain confirmation...'}
+                    {txStep === 'success' && 'Agent registered successfully!'}
+                    {txStep === 'error' && 'Transaction failed. Please try again.'}
+                  </span>
+                </div>
+                {txStep !== 'error' && txStep !== 'success' && (
+                  <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-primary-400 to-purple-400"
+                      initial={{ width: '0%' }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </form>
       </motion.div>

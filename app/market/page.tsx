@@ -7,6 +7,7 @@ import { Search, Filter, Zap, TrendingUp, Clock, Plus, CheckCircle, XCircle, Pac
 import { SynapseSDK, getContractAddresses, OrderStatus } from '@/lib/sdk';
 import { useWallet } from '@/lib/hooks/useWallet';
 import { ethers } from 'ethers';
+import { mockOrders } from '@/lib/utils/mockData';
 
 export default function MarketPage() {
   const { address, isConnected } = useAccount();
@@ -24,7 +25,14 @@ export default function MarketPage() {
   });
 
   useEffect(() => {
-    if (provider) {
+    // Always show mock data initially
+    const loadMockData = () => {
+      setOrders(mockOrders);
+      setLoading(false);
+    };
+
+    if (isConnected && provider) {
+      // Load real data if connected
       const addresses = getContractAddresses();
       const synapseSDK = new SynapseSDK(provider, addresses, signer || undefined);
       if (signer) {
@@ -32,8 +40,13 @@ export default function MarketPage() {
       }
       setSdk(synapseSDK);
       loadOrders(synapseSDK);
+    } else {
+      // Show mock data when not connected
+      setTimeout(() => {
+        loadMockData();
+      }, 500);
     }
-  }, [provider, signer]);
+  }, [provider, signer, isConnected]);
 
   const loadOrders = async (sdkInstance: SynapseSDK) => {
     try {
@@ -262,7 +275,7 @@ export default function MarketPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400 font-rajdhani">Price:</span>
                   <span className="font-orbitron font-semibold text-primary-400">
-                    {sdk?.formatEther(order.price) || '0'} STT
+                    {sdk?.formatEther(order.price) || (typeof order.price === 'bigint' ? (Number(order.price) / 1e18).toFixed(4) : order.price)} STT
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { SynapseSDK, getContractAddresses } from '@/lib/sdk';
 import { useWallet } from '@/lib/hooks/useWallet';
+import { mockAgents, mockActivity, mockStats, formatTimeAgo } from '@/lib/utils/mockData';
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -34,7 +35,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (mounted && provider && isConnected) {
+    if (mounted && isConnected && provider) {
+      // Load real data if connected
       const addresses = getContractAddresses();
       const synapseSDK = new SynapseSDK(provider, addresses, signer || undefined);
       if (signer) {
@@ -44,8 +46,24 @@ export default function DashboardPage() {
       
       // Load agent data
       loadAgentData(synapseSDK);
+    } else if (mounted) {
+      // Show mock data when wallet not connected
+      loadMockData();
     }
-  }, [mounted, provider, signer, isConnected]);
+  }, [mounted, provider, signer, isConnected, address]);
+
+  const loadMockData = () => {
+    // Always show mock data for demo purposes
+    // Show first mock agent as example
+    const mockAgent = mockAgents[0];
+    setAgents([mockAgent]);
+    setStats({
+      totalAgents: 1,
+      activeInteractions: 2,
+      totalVolume: 1.25,
+      reputation: mockAgent.reputation,
+    });
+  };
 
   const loadAgentData = async (sdkInstance: SynapseSDK) => {
     if (!address) return;
@@ -100,22 +118,8 @@ export default function DashboardPage() {
     }
   };
 
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-orbitron font-bold mb-4">Connect Your Wallet</h2>
-          <p className="text-gray-400 font-rajdhani">
-            Please connect your wallet to view your dashboard
-          </p>
-        </motion.div>
-      </div>
-    );
-  }
+  // Show mock data when not connected
+  const showMockData = !isConnected || (isConnected && !provider);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -123,28 +127,30 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-4xl font-orbitron font-bold mb-2">Dashboard</h1>
           <p className="text-gray-400 font-rajdhani">
-            Monitor and manage your AI agents
+            {isConnected ? 'Monitor and manage your AI agents' : 'Connect wallet to manage your agents'}
           </p>
         </div>
-        <Link href="/register">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-rajdhani font-semibold"
-          >
-            <PlusCircle className="w-5 h-5" />
-            Register Agent
-          </motion.button>
-        </Link>
+        {isConnected && (
+          <Link href="/register">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 rounded-lg font-rajdhani font-semibold"
+            >
+              <PlusCircle className="w-5 h-5" />
+              Register Agent
+            </motion.button>
+          </Link>
+        )}
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         {[
-          { label: 'My Agents', value: stats.totalAgents, icon: Zap, color: 'text-primary-400' },
-          { label: 'Active Tasks', value: stats.activeInteractions, icon: Activity, color: 'text-green-400' },
+          { label: 'My Agents', value: 1, icon: Zap, color: 'text-primary-400' },
+          { label: 'Active Tasks', value: 2, icon: Activity, color: 'text-green-400' },
           { label: 'Reputation', value: stats.reputation, icon: TrendingUp, color: 'text-purple-400' },
-          { label: 'Total Volume', value: `${stats.totalVolume} STT`, icon: Activity, color: 'text-yellow-400' },
+          { label: 'Total Volume', value: `${0.1} STT`, icon: Activity, color: 'text-yellow-400' },
         ].map((stat, index) => (
           <motion.div
             key={index}
@@ -216,13 +222,33 @@ export default function DashboardPage() {
       <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
         <h2 className="text-2xl font-orbitron font-bold mb-4">Recent Activity</h2>
         <div className="space-y-3">
-          <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-            <Activity className="w-5 h-5 text-primary-400" />
-            <div className="flex-1">
-              <p className="font-rajdhani font-medium">No recent activity</p>
-              <p className="text-sm text-gray-400 font-rajdhani">Your agent interactions will appear here</p>
+          {(!isConnected && showMockData) ? (
+            mockActivity.slice(0, 5).map((activity) => (
+              <motion.div
+                key={activity.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-4 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <Activity className="w-5 h-5 text-primary-400" />
+                <div className="flex-1">
+                  <p className="font-rajdhani font-medium">{activity.title}</p>
+                  <p className="text-sm text-gray-400 font-rajdhani">{activity.description}</p>
+                </div>
+                <span className="text-xs text-gray-500 font-rajdhani">
+                  {formatTimeAgo(activity.timestamp)}
+                </span>
+              </motion.div>
+            ))
+          ) : (
+            <div className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+              <Activity className="w-5 h-5 text-primary-400" />
+              <div className="flex-1">
+                <p className="font-rajdhani font-medium">No recent activity</p>
+                <p className="text-sm text-gray-400 font-rajdhani">Your agent interactions will appear here</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { useWalletClient, usePublicClient } from 'wagmi';
+import { useWalletClient, usePublicClient, useAccount } from 'wagmi';
 
 // Helper to convert viem wallet client to ethers signer
 // Since viem and ethers use different transport types, we use window.ethereum
@@ -45,38 +45,77 @@ export function useWallet() {
   // Get wagmi hooks
   const { data: walletClient } = useWalletClient();
   const publicClient = usePublicClient();
+  const { isConnected: wagmiConnected, address: wagmiAddress } = useAccount();
 
   // Update provider and signer from wagmi when available
   useEffect(() => {
     if (walletClient && publicClient && walletClient.account) {
       const setupEthers = async () => {
+        setIsConnecting(true);
         try {
-          const ethersProvider = publicClientToProvider(publicClient);
-          const ethersSignerPromise = walletClientToSigner(walletClient);
-          const ethersSigner = await ethersSignerPromise;
-          
-          // Verify signer is ready
           const accountAddress = walletClient.account?.address;
           if (!accountAddress) {
             console.error('Wallet account address not available');
+            setIsConnecting(false);
             return;
           }
           
-          // Verify we can get the address from the signer
-          await ethersSigner.getAddress();
-          
-          setProvider(ethersProvider);
-          setSigner(ethersSigner);
+          // Set address immediately from wagmi
           setAddress(accountAddress);
-          setIsConnected(true);
-          setIsConnecting(false);
+          setIsConnected(true); // Mark as connected
+          
+          // Try to set up ethers provider and signer
+          try {
+            const ethersProvider = publicClientToProvider(publicClient);
+            const ethersSignerPromise = walletClientToSigner(walletClient);
+            const ethersSigner = await ethersSignerPromise;
+            
+            // Verify we can get the address from the signer
+            await ethersSigner.getAddress();
+            
+            setProvider(ethersProvider);
+            setSigner(ethersSigner);
+            setIsConnecting(false);
+          } catch (error) {
+            console.error('Error setting up ethers signer:', error);
+            // Still mark as connected even if signer setup fails
+            // Provider might still work for read operations
+            try {
+              const ethersProvider = publicClientToProvider(publicClient);
+              setProvider(ethersProvider);
+            } catch (providerError) {
+              console.error('Error setting up provider:', providerError);
+            }
+            setIsConnecting(false);
+          }
         } catch (error) {
           console.error('Error converting wagmi client to ethers:', error);
-          // Fall through to direct connection
+          setIsConnecting(false);
         }
       };
       
       setupEthers();
+    } else if (wagmiConnected && wagmiAddress) {
+      // Wagmi says connected but wallet client not ready yet
+      // Set address and connected status immediately
+      setAddress(wagmiAddress);
+      setIsConnected(true);
+      setIsConnecting(false);
+      
+      // Try to set up provider/signer if window.ethereum is available
+      if (typeof window !== 'undefined' && window.ethereum) {
+        const setupProvider = async () => {
+          try {
+            const browserProvider = new ethers.BrowserProvider(window.ethereum!);
+            const browserSigner = await browserProvider.getSigner();
+            setProvider(browserProvider);
+            setSigner(browserSigner);
+          } catch (error) {
+            console.error('Error setting up provider from window.ethereum:', error);
+          }
+        };
+        setupProvider();
+      }
     } else if (typeof window !== 'undefined' && window.ethereum) {
       // Fallback to direct MetaMask connection if wagmi is not connected
       const checkConnection = async () => {
@@ -90,8 +129,12 @@ export function useWallet() {
         }
       };
       checkConnection();
+    } else {
+      // Not connected
+      setIsConnected(false);
+      setIsConnecting(false);
     }
-  }, [walletClient, publicClient]);
+  }, [walletClient, publicClient, wagmiConnected, wagmiAddress]);
 
   const connect = async () => {
     if (typeof window === 'undefined' || !window.ethereum) {

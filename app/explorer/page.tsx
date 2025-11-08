@@ -10,9 +10,12 @@ const ForceGraph2D = typeof window !== 'undefined'
   : () => null;
 import { SynapseSDK, getContractAddresses } from '@/lib/sdk';
 import { useWallet } from '@/lib/hooks/useWallet';
+import { useAccount } from 'wagmi';
+import { mockAgents } from '@/lib/utils/mockData';
 
 export default function ExplorerPage() {
   const { provider } = useWallet();
+  const { isConnected } = useAccount();
   const [sdk, setSdk] = useState<SynapseSDK | null>(null);
   const [agents, setAgents] = useState<any[]>([]);
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
@@ -20,13 +23,39 @@ export default function ExplorerPage() {
   const graphRef = useRef<any>();
 
   useEffect(() => {
-    if (provider) {
+    // Always show mock data initially, then load real data if connected
+    const loadMockData = () => {
+      setAgents(mockAgents);
+      const nodes = mockAgents.map((agent) => ({
+        id: agent.address,
+        name: agent.name,
+        type: agent.type,
+        reputation: agent.reputation,
+        val: Math.max(agent.reputation / 10, 5),
+      }));
+      const links = [
+        { source: nodes[0].id, target: nodes[1].id },
+        { source: nodes[1].id, target: nodes[2].id },
+        { source: nodes[2].id, target: nodes[3].id },
+        { source: nodes[3].id, target: nodes[4].id },
+        { source: nodes[0].id, target: nodes[2].id },
+      ];
+      setGraphData({ nodes, links });
+    };
+
+    if (isConnected && provider) {
+      // Load real data if connected
       const addresses = getContractAddresses();
       const synapseSDK = new SynapseSDK(provider, addresses);
       setSdk(synapseSDK);
       loadAgents(synapseSDK);
+    } else {
+      // Show mock data when not connected
+      setTimeout(() => {
+        loadMockData();
+      }, 500);
     }
-  }, [provider]);
+  }, [provider, isConnected]);
 
   const loadAgents = async (sdkInstance: SynapseSDK) => {
     try {
@@ -163,21 +192,18 @@ export default function ExplorerPage() {
             linkColor={() => 'rgba(59, 130, 246, 0.3)'}
             nodeRelSize={6}
             onNodeClick={(node: any) => {
-              // Focus on clicked node
-              const distance = 100;
-              const distRatio = 1 + distance / Math.hypot(node.x, node.y);
-              if (graphRef.current) {
-                graphRef.current.cameraPosition(
-                  { x: node.x * distRatio, y: node.y * distRatio, z: distance },
-                  node,
-                  3000
-                );
-              }
+              // Highlight clicked node and show details
+              console.log('Clicked node:', node);
+              // You can add node details modal here if needed
             }}
             cooldownTicks={100}
             onEngineStop={() => {
-              if (graphRef.current) {
-                graphRef.current.zoomToFit(400);
+              if (graphRef.current && graphRef.current.zoomToFit) {
+                try {
+                  graphRef.current.zoomToFit(400);
+                } catch (e) {
+                  // zoomToFit might not be available, ignore
+                }
               }
             }}
           />
@@ -202,8 +228,8 @@ export default function ExplorerPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-orbitron font-bold mb-1">{agent.name}</h3>
-                  <p className="text-sm text-gray-400 font-mono">{agent.id}</p>
+                  <h3 className="text-lg font-orbitron font-bold mb-1">{agent.name || `Agent ${index + 1}`}</h3>
+                  <p className="text-sm text-gray-400 font-mono">{agent.address ? `${agent.address.slice(0, 6)}...${agent.address.slice(-4)}` : agent.id || 'N/A'}</p>
                 </div>
                 <Zap className="w-6 h-6 text-primary-400" />
               </div>
@@ -211,12 +237,21 @@ export default function ExplorerPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400 font-rajdhani">Type:</span>
-                  <span className="font-rajdhani font-semibold">{agent.type}</span>
+                  <span className="font-rajdhani font-semibold">{agent.type || 'Unknown'}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400 font-rajdhani">Reputation:</span>
-                  <span className="font-rajdhani font-semibold text-primary-400">{agent.reputation}</span>
+                  <span className="font-rajdhani font-semibold text-primary-400">{agent.reputation || 0}</span>
                 </div>
+                {agent.capabilities && agent.capabilities.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {agent.capabilities.slice(0, 3).map((cap: string, i: number) => (
+                      <span key={i} className="text-xs px-2 py-1 bg-primary-600/20 text-primary-400 rounded">
+                        {cap}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button className="w-full mt-4 px-4 py-2 bg-primary-600/20 hover:bg-primary-600/30 rounded-lg font-rajdhani font-semibold text-sm transition-colors">

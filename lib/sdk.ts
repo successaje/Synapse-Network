@@ -132,14 +132,18 @@ export class SynapseSDK {
     );
   }
 
+  private connectContract<T extends ethers.Contract>(contract: T, signer: ethers.Signer): T {
+    return contract.connect(signer) as T;
+  }
+
   async connectSigner(signer: ethers.Signer) {
     this.signer = signer;
-    this.agentRegistry = this.agentRegistry.connect(signer);
-    this.serviceAgreement = this.serviceAgreement.connect(signer);
-    this.escrowVault = this.escrowVault.connect(signer);
-    this.verifier = this.verifier.connect(signer);
-    this.synapseExchange = this.synapseExchange.connect(signer);
-    this.intentRouter = this.intentRouter.connect(signer);
+    this.agentRegistry = this.connectContract(this.agentRegistry, signer);
+    this.serviceAgreement = this.connectContract(this.serviceAgreement, signer);
+    this.escrowVault = this.connectContract(this.escrowVault, signer);
+    this.verifier = this.connectContract(this.verifier, signer);
+    this.synapseExchange = this.connectContract(this.synapseExchange, signer);
+    this.intentRouter = this.connectContract(this.intentRouter, signer);
   }
 
   // Agent Registry methods
